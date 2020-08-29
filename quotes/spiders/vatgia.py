@@ -5,7 +5,7 @@ URL = 'https://vatgia.com'
 class LazadaSpiders(scrapy.Spider):
     name = 'vatgia'
     url = 'https://vatgia.com/raovat/'
-    categoris = [
+    categories = {
         '2588/bat-dong-san.html',
         '2603/viec-lam-tuyen-dung.html',
         '1717/dich-vu-giai-tri.html',
@@ -24,16 +24,29 @@ class LazadaSpiders(scrapy.Spider):
         '1754/me-be.html',
         '7185/giao-duc-dao-tao.html',
         '1763/hoa-qua-tang-my-nghe.html'
-    ]
+    }
 
     def start_requests(self):
-        for category in self.categoris:
+        for category in self.categories:
             url = '%s%s' %(self.url, category)
 
             # for i in range(1,3):
             #     url_ca = '%s/?page=%s' %(url, i)
-            yield scrapy.Request(url=url, callback=self.parse)
+            yield scrapy.Request(url=url, callback=self.parse_category)
 
+    def parse_category(self, response):
+        #num = self.categories.items()
+        list_category = response.css('div.list-category-child')
+        for item in list_category.css('a::attr(href)').extract():
+            try:
+                category = item
+                url = '%s%s' %(URL, category)
+                yield scrapy.Request(
+                    url=url,
+                    callback=self.parse
+                )
+            except:
+                print('error')
 
     def parse(self, response):
         list_item = response.css('div.list-post-category')
@@ -53,11 +66,13 @@ class LazadaSpiders(scrapy.Spider):
         title = self.extract_title(response)
         price = self.extract_price(response)
         comments = self.extract_comments(response)
+        category = self.extract_category(response)
 
         yield {
             'title': title,
             'price': price,
-            'comments': comments
+            'comments': comments,
+            'category': category
         }
 
     def extract_title(self, response):
@@ -73,4 +88,16 @@ class LazadaSpiders(scrapy.Spider):
         for cmt in comments:
             list = comments.css('p.content-cmt-pc::text').extract_first()
             return list
+
+    def extract_category(self, response):
+        categories = response.css('ol.breadcrumb')
+        category = ''
+        i = 0;
+        for item in categories.css('li.breadcrumb-item'):
+            category = item.css('a::text').extract()
+            i = i + 1
+            if i==2:
+                break
+
+        return category
 
